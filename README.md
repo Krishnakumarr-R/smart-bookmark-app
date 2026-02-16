@@ -4,7 +4,7 @@ A real-time bookmark manager built with Next.js 14 (App Router), Supabase, and T
 
 ## 🚀 Live Demo
 
-**Vercel URL:** [https://smart-bookmark-app-theta-swart.vercel.app]((https://smart-bookmark-app-theta-swart.vercel.app)
+**Vercel URL:** [https://smart-bookmark-app-theta-swart.vercel.app](https://smart-bookmark-app-theta-swart.vercel.app)
 
 ## ✨ Features
 
