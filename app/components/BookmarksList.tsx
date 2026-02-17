@@ -18,56 +18,69 @@ export default function BookmarksList({ initialBookmarks, userId }: { initialBoo
   const supabase = createClient()
 
   useEffect(() => {
-    // Sync state with initialBookmarks when they change
     setBookmarks(initialBookmarks)
   }, [initialBookmarks])
 
   useEffect(() => {
-    // Set up real-time subscription
     const channel = supabase
-      .channel('bookmarks-changes')
+      .channel(`bookmarks-${userId}`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
+          schema: 'public',
+          table: 'bookmarks',
+          // Removed filter — some Supabase plans don't support
+          // server-side filters on Realtime. We filter client-side instead.
+        },
+        async (payload) => {
+          console.log('INSERT event received:', payload)
+
+          // Only handle this user's bookmarks
+          if (payload.new?.user_id !== userId) return
+
+          const insertedId = payload.new?.id
+          if (!insertedId) return
+
+          // Re-fetch because RLS strips payload.new data on receiving tab
+          const { data, error } = await supabase
+            .from('bookmarks')
+            .select('*')
+            .eq('id', insertedId)
+            .single()
+
+          console.log('Re-fetched bookmark:', data, error)
+
+          if (error || !data) return
+
+          setBookmarks((current) => {
+            if (current.some((b) => b.id === data.id)) return current
+            return [data as Bookmark, ...current]
+          })
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
           schema: 'public',
           table: 'bookmarks',
         },
         (payload) => {
-          console.log('Realtime event:', payload) // Debug log
-          
-          if (payload.eventType === 'INSERT') {
-            const newBookmark = payload.new as Bookmark
-            // Only add if it belongs to current user
-            if (newBookmark.user_id === userId) {
-              setBookmarks((current) => {
-                // Avoid duplicates
-                if (current.some(b => b.id === newBookmark.id)) {
-                  return current
-                }
-                return [newBookmark, ...current]
-              })
-            }
-          } else if (payload.eventType === 'DELETE') {
-            setBookmarks((current) => current.filter((b) => b.id !== payload.old.id))
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedBookmark = payload.new as Bookmark
-            if (updatedBookmark.user_id === userId) {
-              setBookmarks((current) =>
-                current.map((b) => (b.id === updatedBookmark.id ? updatedBookmark : b))
-              )
-            }
-          }
+          console.log('DELETE event received:', payload)
+          setBookmarks((current) =>
+            current.filter((b) => b.id !== payload.old.id)
+          )
         }
       )
-      .subscribe((status) => {
-        console.log('Subscription status:', status) // Debug log
+      .subscribe((status, err) => {
+        console.log('Realtime status:', status, err)
       })
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [supabase, userId])
+  }, [userId])
 
   async function handleDelete(bookmarkId: string) {
     try {

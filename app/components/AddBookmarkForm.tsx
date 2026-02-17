@@ -1,12 +1,13 @@
 'use client'
 
-import { addBookmark } from '@/app/lib/actions'
 import { useState, useRef } from 'react'
+import { createClient } from '@/app/lib/supabase-client'
 
-export default function AddBookmarkForm() {
+export default function AddBookmarkForm({ onBookmarkAdded }: { onBookmarkAdded?: (bookmark: any) => void }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const formRef = useRef<HTMLFormElement>(null)
+  const supabase = createClient()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -14,9 +15,35 @@ export default function AddBookmarkForm() {
     setError('')
 
     const formData = new FormData(e.currentTarget)
+    const title = formData.get('title') as string
+    const url = formData.get('url') as string
 
     try {
-      await addBookmark(formData)
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        throw new Error('Not authenticated')
+      }
+
+      const { data, error: insertError } = await supabase
+        .from('bookmarks')
+        .insert({
+          user_id: user.id,
+          url,
+          title,
+        })
+        .select()
+        .single()
+
+      if (insertError) {
+        throw insertError
+      }
+
+      // Optimistically update parent component
+      if (data && onBookmarkAdded) {
+        onBookmarkAdded(data)
+      }
+
       // Reset form after successful submission
       if (formRef.current) {
         formRef.current.reset()
