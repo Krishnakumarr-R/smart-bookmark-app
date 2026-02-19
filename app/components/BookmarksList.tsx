@@ -49,7 +49,7 @@ export default function BookmarksList({ initialBookmarks, userId }: { initialBoo
             .eq('id', insertedId)
             .single()
 
-          console.log('Re-fetched bookmark:', data, error)
+          // console.log('Re-fetched bookmark:', data, error)
 
           if (error || !data) return
 

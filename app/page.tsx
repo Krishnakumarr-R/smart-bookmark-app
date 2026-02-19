@@ -83,9 +83,6 @@ export default async function Home() {
         <div>
           <h2 className="text-xl font-semibold text-stone-800 mb-4 flex items-center gap-2">
             <span>Your Bookmarks</span>
-            <span className="text-sm font-normal text-stone-500">
-              ({bookmarks?.length || 0})
-            </span>
           </h2>
           <BookmarksList initialBookmarks={bookmarks || []} userId={user.id} />
         </div>
